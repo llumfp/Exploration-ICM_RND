@@ -319,7 +319,7 @@ if __name__ == "__main__":
     #See what happens
     print('Original MountainCar')
     ll=[]
-    for i in range(1):
+    for i in range(1): # Podem fer 3 execucions
         env = gym.make('MountainCar-v0', render_mode="human") if render else gym.make('MountainCar-v0')
         dqn = DQN(env, verbose=True, render=render)
         l1,_ = dqn.learn(50000)
@@ -335,18 +335,19 @@ if __name__ == "__main__":
     #plt.subplot(4,1,1)
     #axes2.plot(np.array(ll).mean(axis=0))
     plt.ylim((0, 210)) 
-    plt.savefig('original.png')
+    plt.savefig('plots/original.png')
     plt.show()
     print(ll)
-    file = open('original', 'wb')
+    file = open('models/original', 'wb')
     pickle.dump(ll, file)
     file.close()
 
+    # Entorn costumitzats per tenir funció de reforç esparsa, però NO informativa
     from env import MountainCarCustomized
     env = MountainCarCustomized()
     print('Customized MountainCar sparsified with epsilon exploration')
     ll2=[]
-    for i in range(1):
+    for i in range(1): # Podem fer 3 execucions
         env = MountainCarCustomized()
         dqn = DQN(env, verbose=True, render=render)
         l1,_ = dqn.learn(50000)
@@ -359,56 +360,56 @@ if __name__ == "__main__":
     plt.grid()
     plt.plot(np.array(ll2).mean(axis=0))
     plt.ylim((0, 210)) 
-    plt.savefig('customized-eps.png')
+    plt.savefig('plots/customized-eps.png')
     plt.show()
     print(ll2)
-    file = open('Cust-eps', 'wb')
+    file = open('models/Cust-eps', 'wb')
     pickle.dump(ll2, file)
     file.close()
 
-    # DQN + ICM
-    print('Customized MountainCar sparsified with ICM')
-    ll4=[]
-    for i in range(1):
-        env = MountainCarCustomized()
-        dqn = DQN(env, verbose=True, reward_module="ICM", render=render)
-        l1,_ = dqn.learn(50000)
-        ll4.append(l1)
-        print(' Mean: ',test_policy_100(env,dqn))
-    plt.plot(np.array(ll4).mean(axis=0))
-    plt.title('Customized MountainCar with ICM')
-    plt.xlabel('Time steps')
-    plt.ylabel('Episode length')
-    plt.grid()
-    plt.ylim((0, 210)) 
-    plt.savefig('Customized-ICM.png')
-    plt.show()
-    print(ll4)
-    file = open('Cust-ICM', 'wb')
-    pickle.dump(ll4, file)
-    file.close()
+    # # DQN + ICM
+    # print('Customized MountainCar sparsified with ICM')
+    # ll4=[]
+    # for i in range(1): # Podem fer 3 execucions
+    #     env = MountainCarCustomized()
+    #     dqn = DQN(env, verbose=True, reward_module="ICM", render=render)
+    #     l1,_ = dqn.learn(50000)
+    #     ll4.append(l1)
+    #     print(' Mean: ',test_policy_100(env,dqn))
+    # plt.plot(np.array(ll4).mean(axis=0))
+    # plt.title('Customized MountainCar with ICM')
+    # plt.xlabel('Time steps')
+    # plt.ylabel('Episode length')
+    # plt.grid()
+    # plt.ylim((0, 210)) 
+    # plt.savefig('plots/Customized-ICM.png')
+    # plt.show()
+    # print(ll4)
+    # file = open('models/Cust-ICM', 'wb')
+    # pickle.dump(ll4, file)
+    # file.close()
 
-    # DQN + RND
-    print('Customized MountainCar sparsified RND exploration')
-    ll3=[]
-    for i in range(1):
-        env = MountainCarCustomized()
-        dqn = DQN(env, verbose=True, reward_module="RND", render=render)
-        l1,_ = dqn.learn(50000)
-        ll3.append(l1)
-    print(' Mean: ',test_policy_100(env,dqn))
-    plt.plot(np.array(ll3).mean(axis=0))
-    plt.title('Customized MountainCar with RND')
-    plt.xlabel('Time steps')
-    plt.ylabel('Episode length')
-    plt.grid()
-    plt.ylim((0, 210)) 
-    plt.savefig('customized-RND.png')
-    plt.show()
-    print(ll3)
-    file = open('Cust-RND', 'wb')
-    pickle.dump(ll3, file)
-    file.close()
+    # # DQN + RND
+    # print('Customized MountainCar sparsified RND exploration')
+    # ll3=[]
+    # for i in range(1): # Podem fer 3 execucions
+    #     env = MountainCarCustomized()
+    #     dqn = DQN(env, verbose=True, reward_module="RND", render=render)
+    #     l1,_ = dqn.learn(50000)
+    #     ll3.append(l1)
+    # print(' Mean: ',test_policy_100(env,dqn))
+    # plt.plot(np.array(ll3).mean(axis=0))
+    # plt.title('Customized MountainCar with RND')
+    # plt.xlabel('Time steps')
+    # plt.ylabel('Episode length')
+    # plt.grid()
+    # plt.ylim((0, 210)) 
+    # plt.savefig('plots/customized-RND.png')
+    # plt.show()
+    # print(ll3)
+    # file = open('models/Cust-RND', 'wb')
+    # pickle.dump(ll3, file)
+    # file.close()
 
 
 

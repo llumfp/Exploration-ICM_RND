@@ -48,6 +48,7 @@ class RNDNetwork(IntrinsicRewardModule):
         #   target and predictor outputs.
         # Scale them using self.alpha
         # Force them into the interval [0.0, 1.0]
+        # Podem fer un clip o escalar perquè no sigui tant gran la diferència entre el reward bàsic i l'intrínsec
         return torch.Tensor([0.0])
 
 
@@ -57,6 +58,7 @@ class ICMNetwork(IntrinsicRewardModule):
     def __init__(self, num_obs, num_feature, num_act, alpha=10.0, beta=0.5):
         super().__init__()
 
+        # Xarxa neuronal per obtenir les features importants
         self.feature = nn.Sequential(nn.Linear(num_obs, num_feature), nn.ReLU(), )
 
         self.inverse_dynamics = nn.Sequential(
