@@ -40,7 +40,11 @@ class RNDNetwork(IntrinsicRewardModule):
         # Make sure to not backpropagate gradients through the target network, i.e.
         #   keep the target network static.
         # Compute MSE loss, i.e. through F.mse_loss(...)
-        return NotImplemented
+        with torch.no_grad():
+            target_output = self.target(obs)
+        predictor_output = self.predictor(obs)
+        loss = F.mse_loss(predictor_output, target_output)
+        return loss
 
     def calculate_reward(self, obs, next_obs, actions):
         # TODO
@@ -48,8 +52,16 @@ class RNDNetwork(IntrinsicRewardModule):
         #   target and predictor outputs.
         # Scale them using self.alpha
         # Force them into the interval [0.0, 1.0]
-        # Podem fer un clip o escalar perquè no sigui tant gran la diferència entre el reward bàsic i l'intrínsec
-        return torch.Tensor([0.0])
+        # Podem fer un clip o escalar perquè no sigui tant gran la diferència entre el reward bàsic i l'intrínsec. O optar per un clamp.
+        with torch.no_grad():
+            target_output = self.target(next_obs)
+        predictor_output = self.predictor(next_obs)
+
+        # Using MSE for reward, consistent with RND literature for surprise
+        reward = F.mse_loss(predictor_output, target_output, reduction='none').mean(dim=-1)
+        reward = self.alpha * reward
+        reward = torch.clamp(reward, 0.0, 1.0)
+        return reward.unsqueeze(-1)
 
 
 class ICMNetwork(IntrinsicRewardModule):
@@ -75,11 +87,11 @@ class ICMNetwork(IntrinsicRewardModule):
         self.num_feat = num_feature
 
     def calculate_loss(self, obs, next_obs, actions):
-        actions = actions.unsqueeze(1)
+        actions_input = actions.unsqueeze(1)
         # These are the ground-truth action probabilities
         # I.e. probability of 100% for the action performed
-        actions_target = torch.zeros(obs.size()[0], self.num_actions)
-        for i, a in enumerate(actions):
+        actions_target = torch.zeros(obs.size()[0], self.num_actions, device=obs.device)
+        for i, a in enumerate(actions_input):
             actions_target[i, int(a)] = 1.0
 
         # TODO
@@ -88,7 +100,12 @@ class ICMNetwork(IntrinsicRewardModule):
         # - Use both of the encodings to predict the action that has been performed
         #       Hint: Have a look at how the input layer sizes are defined
         # - Calculate the cross entropy loss between prediction and ground-truth
-        inverse_dynamics_loss = 0.0
+        phi_obs = self.feature(obs)
+        phi_next_obs = self.feature(next_obs)
+
+        # Inverse dynamics
+        action_pred = self.inverse_dynamics(torch.cat((phi_obs, phi_next_obs), dim=1))
+        inverse_dynamics_loss = F.cross_entropy(action_pred, actions_target)
 
         # TODO
         # Forward dynamics loss
@@ -96,17 +113,18 @@ class ICMNetwork(IntrinsicRewardModule):
         #       to the forward_dynamics model
         # - Calculate, how much the forward prediction differs from the actual next_obs encoding
         # - Calculate the MSE loss between prediction and ground-truth, multiply by 0.5
-        forward_dynamics_loss = 0.0
+        # Forward dynamics
+        # We need to detach phi_obs here as per original ICM paper, to prevent the feature net from predicting its own output
+        phi_next_obs_pred = self.forward_dynamics(torch.cat((phi_obs.detach(), actions_target), dim=1)) 
+        forward_dynamics_loss = 0.5 * F.mse_loss(phi_next_obs_pred, phi_next_obs.detach()) # also detach target next_obs features
 
         # Add up
-        loss = (
-                1.0 - self.beta
-               ) * inverse_dynamics_loss + self.beta * forward_dynamics_loss
+        loss = (1.0 - self.beta) * inverse_dynamics_loss + self.beta * forward_dynamics_loss
         return loss
 
     def calculate_reward(self, obs, next_obs, actions):
         # One-hot encoding/probability matrix for the performed actions
-        actions_one_hot = torch.zeros((obs.size()[0], self.num_actions))
+        actions_one_hot = torch.zeros((obs.size()[0], self.num_actions), device=obs.device)
         for i, a in enumerate(actions):
             actions_one_hot[i, int(a)] = 1.0
 
@@ -114,6 +132,14 @@ class ICMNetwork(IntrinsicRewardModule):
         # - The reward is defined as the MAE between ground truth and prediction of the forward model
         # - Use L1 loss (MAE) instead of MSE to compute the differences between the two
         # - Multiply by the scaling factor alpha
-        reward = 0.0
+        with torch.no_grad(): # Rewards should not contribute to gradients
+            phi_obs = self.feature(obs)
+            phi_next_obs = self.feature(next_obs)
+            
+            phi_next_obs_pred = self.forward_dynamics(torch.cat((phi_obs, actions_one_hot), dim=1))
+            
+            # MAE for reward
+            reward = F.l1_loss(phi_next_obs_pred, phi_next_obs, reduction='none').mean(dim=-1)
+            reward = self.alpha * reward
         
-        return reward
+        return reward.unsqueeze(-1)
